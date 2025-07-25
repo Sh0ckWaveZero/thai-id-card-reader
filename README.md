@@ -5,13 +5,15 @@
 ## 🌟 Features
 
 - ✅ Read Thai national ID card data via PC/SC
-- 🌐 WebSocket server for web applications (MEDHIS Centrix compatible)  
+- 🌐 WebSocket server for web applications with multi-system support
 - 🔌 HTTP API endpoint for card reading
 - 🔒 HTTPS support with SSL certificates
 - 📊 Structured logging system
 - 🛡️ Enhanced error handling with PC/SC error management and validation
 - 🏗️ Clean, maintainable TypeScript architecture
+- 🔧 Plugin-based integration system for multiple hospital/clinic systems
 - 📱 Cross-platform support (macOS, Windows, Linux)
+- ⚙️ Configurable integration management (MEDHIS Centrix, custom systems)
 
 ## 🖥️ Compatibility
 
@@ -76,8 +78,34 @@ npm run setup-cert && npm start
 ```
 
 **Server Endpoints:**
-- WebSocket: `ws://localhost:8182` 
+
+- WebSocket: `ws://localhost:8182`
 - HTTPS: `https://localhost:8085` (if certificates available)
+
+## 🔧 Integration System
+
+This library supports multiple hospital/clinic systems through a plugin-based architecture.
+
+### Configuration
+
+Edit `config/integrations.json` to enable/disable systems:
+
+```json
+{
+  "integrations": {
+    "medhis": {
+      "name": "MEDHIS Centrix",
+      "enabled": true,
+      "priority": 10
+    },
+    "hospital_x": {
+      "name": "Hospital System X", 
+      "enabled": false,
+      "priority": 5
+    }
+  }
+}
+```
 
 ### MEDHIS Centrix Integration
 
@@ -85,70 +113,111 @@ npm run setup-cert && npm start
 // Connect to WebSocket server
 const socket = new WebSocket('ws://localhost:8182');
 
-// Send read command
+// Send read command (MEDHIS format)
 socket.send(JSON.stringify({ mode: 'readsmartcard' }));
 
 // Receive patient data
 socket.onmessage = function(e) {
-  const patientData = JSON.parse(e.data);
-  if (patientData.mode === "readsmartcard") {
-    console.log('Patient data:', patientData);
-    // Use patientData.Citizenid, patientData.Th_Firstname, etc.
+  const response = JSON.parse(e.data);
+  console.log(`Processed by: ${response.integrationUsed}`);
+  
+  if (response.mode === "readsmartcard") {
+    console.log('Patient data:', response);
+    // Use response.Citizenid, response.Th_Firstname, etc.
   }
 };
+```
+
+### Custom Hospital System Integration
+
+```javascript
+// Hospital System X format
+socket.send(JSON.stringify({ 
+  action: 'read_card', 
+  department: 'emergency' 
+}));
+
+// Generic format
+socket.send(JSON.stringify({ 
+  command: 'scan_id',
+  clinic: 'CLINIC001'
+}));
 ```
 
 ## 📋 Data Structures
 
 ### Library Response Object
 
-| Field Name | Type | Description |
-|------------|------|-------------|
-| `citizenID` | string | 13-digit citizen ID number |
-| `fullNameTH` | string | Full name in Thai |
-| `fullNameEN` | string | Full name in English |
-| `titleTH` | string | Thai title (นาย, นาง, นางสาว) |
-| `titleEN` | string | English title (Mr., Mrs., Miss) |
-| `firstNameTH` | string | Thai first name |
-| `firstNameEN` | string | English first name |
-| `lastNameTH` | string | Thai last name |
-| `lastNameEN` | string | English last name |
-| `gender` | `"male" \| "female"` | Gender |
-| `dateOfBirth` | string | Birth date (YYYY-MM-DD) |
-| `address` | string | Full address |
-| `cardIssuer` | string | Card issuing authority |
-| `issueDate` | string | Card issue date (YYYY-MM-DD) |
-| `expireDate` | string | Card expiry date (YYYY-MM-DD) |
-| `photoAsBase64Uri` | string | Base64 encoded photo with data URI |
+| Field Name           | Type                  | Description                               |
+| -------------------- | --------------------- | ----------------------------------------- |
+| `citizenID`        | string                | 13-digit citizen ID number                |
+|                      |                       |                                           |
+| `fullNameTH`       | string                | Full name in Thai                         |
+| `fullNameEN`       | string                | Full name in English                      |
+| `titleTH`          | string                | Thai title (นาย, นาง, นางสาว) |
+| `titleEN`          | string                | English title (Mr., Mrs., Miss)           |
+| `firstNameTH`      | string                | Thai first name                           |
+| `firstNameEN`      | string                | English first name                        |
+| `lastNameTH`       | string                | Thai last name                            |
+| `lastNameEN`       | string                | English last name                         |
+| `gender`           | `"male" \| "female"` | Gender                                    |
+| `dateOfBirth`      | string                | Birth date (YYYY-MM-DD)                   |
+| `address`          | string                | Full address                              |
+| `cardIssuer`       | string                | Card issuing authority                    |
+| `issueDate`        | string                | Card issue date (YYYY-MM-DD)              |
+| `expireDate`       | string                | Card expiry date (YYYY-MM-DD)             |
+| `photoAsBase64Uri` | string                | Base64 encoded photo with data URI        |
+
+### Integration Response Format
+
+All responses include integration metadata:
+
+| Field Name        | Type                | Description                                    |
+| ----------------- | ------------------- | ---------------------------------------------- |
+| `integrationUsed` | string              | Which integration processed the message        |
+| `metadata`        | object              | Integration-specific metadata                  |
 
 ### MEDHIS Centrix Compatible Format
 
-| Field Name | Type | Description |
-|------------|------|-------------|
-| `mode` | `"readsmartcard"` | Fixed mode identifier |
-| `Citizenid` | string | 13-digit citizen ID |
-| `Th_Firstname` | string | Thai first name |
-| `Th_Middlename` | null | Always null (Thai IDs don't have middle names) |
-| `Th_Lastname` | string | Thai last name |
-| `Th_Prefix` | string | Thai title |
-| `Birthday` | string | Birth date (YYYY/MM/DD format) |
-| `Sex` | `1 \| 2` | Gender (1=Male, 2=Female) |
-| `Address` | string | Full address |
-| `addrHouseNo` | string | House number |
-| `addrVillageNo` | string | Village number |
-| `addrTambol` | string | Sub-district |
-| `addrAmphur` | string | District |
-| `PhotoRaw` | string | Base64 photo without data URI prefix |
+| Field Name        | Type                | Description                                    |
+| ----------------- | ------------------- | ---------------------------------------------- |
+| `mode`          | `"readsmartcard"` | Fixed mode identifier                          |
+| `Citizenid`     | string              | 13-digit citizen ID                            |
+| `Th_Firstname`  | string              | Thai first name                                |
+| `Th_Middlename` | null                | Always null (Thai IDs don't have middle names) |
+| `Th_Lastname`   | string              | Thai last name                                 |
+| `Th_Prefix`     | string              | Thai title                                     |
+| `Birthday`      | string              | Birth date (YYYY/MM/DD format)                 |
+| `Sex`           | `1 \| 2`           | Gender (1=Male, 2=Female)                      |
+| `Address`       | string              | Full address                                   |
+| `addrHouseNo`   | string              | House number                                   |
+| `addrVillageNo` | string              | Village number                                 |
+| `addrTambol`    | string              | Sub-district                                   |
+| `addrAmphur`    | string              | District                                       |
+| `PhotoRaw`      | string              | Base64 photo without data URI prefix           |
+
+### Custom Integration Formats
+
+Hospital systems can define their own message formats. See `docs/INTEGRATION_ARCHITECTURE.md` for details on creating custom integrations.
 
 ## 🏗️ Architecture
 
 ### Project Structure
+
 ```
 src/
 ├── config/
-│   └── constants.ts          # Configuration constants
+│   ├── constants.ts          # Configuration constants
+│   └── integration-config.ts # Integration system types
 ├── types/
-│   └── index.ts              # TypeScript interfaces
+│   ├── index.ts              # Core TypeScript interfaces
+│   └── integration.ts        # Integration system interfaces
+├── core/
+│   └── integration-manager.ts # Central integration manager
+├── integrations/
+│   ├── base/                 # Base classes for integrations
+│   ├── medhis/              # MEDHIS Centrix integration
+│   └── custom/              # Custom hospital integrations
 ├── utils/
 │   ├── messageValidator.ts   # Message validation utilities
 │   └── pcscErrorHandler.ts   # PC/SC error handling
@@ -163,14 +232,37 @@ src/
 
 ### Key Components
 
+- **🔧 Integration Manager**: Central orchestrator for multiple hospital/clinic systems
 - **🔌 Connection Manager**: Handles multiple connection modes with retry logic
-- **📡 Command Sender**: Manages APDU command transmission with timeout handling  
-- **✅ Message Validator**: Validates incoming WebSocket messages and data integrity
+- **📡 Command Sender**: Manages APDU command transmission with timeout handling
+- **✅ Message Validator**: Universal message validation with integration support
 - **🛡️ PC/SC Error Handler**: Comprehensive error handling for smart card operations
 - **📊 Logger**: Structured logging with configurable levels
 - **🌐 WebSocket Server**: Real-time communication server for web applications
+- **🔗 Plugin System**: Extensible integration system for custom hospital formats
 
 ## ⚙️ Configuration
+
+### Integration Configuration
+
+Configure which hospital/clinic systems to support in `config/integrations.json`:
+
+```json
+{
+  "integrations": {
+    "medhis": {
+      "name": "MEDHIS Centrix",
+      "enabled": true,
+      "priority": 10,
+      "compatibilityMode": true
+    }
+  },
+  "general": {
+    "allowMultipleIntegrations": false,
+    "fallbackToGeneric": true
+  }
+}
+```
 
 ### Environment Variables
 
@@ -181,10 +273,12 @@ LOG_LEVEL=INFO  # DEBUG, INFO, WARN, ERROR
 ### SSL Certificates
 
 Place SSL certificates in the project root:
+
 - `cert.pem` - SSL certificate
 - `key.pem` - Private key
 
 Generate self-signed certificates:
+
 ```bash
 npm run setup-cert
 ```
@@ -242,21 +336,22 @@ node check-readers.js
 ### Common Issues
 
 1. **Card not detected**
+
    - Try increasing `insertCardDelay` (Windows: 1000ms, macOS: 500ms)
    - Check card reader connection
    - Verify card reader drivers
-
 2. **Timeout errors**
+
    - Increase `readTimeout` value
    - Check for hardware conflicts
    - Try different connection modes
-
 3. **Build errors on Windows**
+
    - Install Visual Studio Build Tools
    - Use Node.js version 16+
    - Install Windows Build Tools
-
 4. **Permission errors**
+
    - Run as administrator (Windows)
    - Check PC/SC service status
    - Verify card reader permissions
@@ -281,10 +376,49 @@ ISC License
 4. Add tests if applicable
 5. Submit a pull request
 
+## 🔧 Adding Custom Integrations
+
+To add support for your hospital/clinic system:
+
+1. **Create Integration Class**:
+   ```typescript
+   // src/integrations/custom/my-system-integration.ts
+   export class MySystemIntegration extends BaseIntegration {
+     // Your implementation
+   }
+   ```
+
+2. **Define Message Format**:
+   ```json
+   // config/integrations.json
+   {
+     "my_system": {
+       "name": "My Hospital System",
+       "enabled": true,
+       "messageFormat": {
+         "trigger": { "command": "read_patient" }
+       }
+     }
+   }
+   ```
+
+3. **Register Integration**:
+   ```typescript
+   // src/core/integration-manager.ts
+   case 'my hospital system':
+     return new MySystemIntegration(config);
+   ```
+
+For detailed guides, see:
+- `docs/INTEGRATION_ARCHITECTURE.md` - Technical architecture
+- `docs/MIGRATION_GUIDE.md` - Migration from hard-coded systems
+- `examples/integration-usage.md` - Usage examples
+
 ## 📞 Support
 
 For issues and questions:
+
 - Check the troubleshooting section
+- Review integration documentation in `docs/`
 - Review existing GitHub issues
 - Create a new issue with detailed information
-

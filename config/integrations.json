@@ -1,0 +1,23 @@
+{
+  "integrations": {
+    "medhis": {
+      "name": "MEDHIS Centrix",
+      "enabled": true,
+      "messageValidator": "validateMedisMessage",
+      "messageFormat": {
+        "trigger": { "mode": "readsmartcard" },
+        "response": {
+          "message": "string",
+          "timestamp": "ISO8601"
+        }
+      },
+      "compatibilityMode": true
+    },
+    "custom": []
+  },
+  "general": {
+    "allowMultipleIntegrations": false,
+    "fallbackToGeneric": true,
+    "enableCompatibilityMode": true
+  }
+}

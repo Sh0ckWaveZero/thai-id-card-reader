@@ -5,6 +5,7 @@ import { WebSocketMessage } from "../types";
 import { DataTransformer } from "../utils/dataTransformer";
 import { MessageValidator } from "../utils/messageValidator";
 import { logger } from "../utils/logger";
+import { integrationManager } from "../core/integration-manager";
 
 export class WebSocketServerManager {
   private wss: WebSocketServer | null = null;
@@ -60,33 +61,29 @@ export class WebSocketServerManager {
     const sanitizedData = MessageValidator.sanitizeString(data.toString());
     logger.debug("Received:", sanitizedData);
 
-    // First try MEDHIS-style validation for backward compatibility
-    const medisValidation = MessageValidator.validateMedisMessage(sanitizedData);
-    if (medisValidation.isValid && medisValidation.message) {
-      this.processMessage(ws, medisValidation.message);
-      return;
-    }
-
-    // Try standard WebSocket message validation
-    const validation = MessageValidator.validateWebSocketMessage(sanitizedData);
+    // Use the new integration manager for message validation
+    const validation = integrationManager.validateMessage(sanitizedData);
     
     if (validation.isValid && validation.message) {
+      logger.info(`Message validated by: ${validation.integrationUsed}`);
       this.processMessage(ws, validation.message);
     } else {
       logger.warn("Invalid message received:", validation.error);
       this.sendMessage(ws, {
         error: validation.error || RESPONSE_MESSAGES.INVALID_JSON,
+        metadata: validation.metadata
       });
     }
   }
 
   private processMessage(ws: WebSocket, message: WebSocketMessage): void {
-    // Handle MEDHIS-style messages
+    // Handle messages based on their content (integration-agnostic)
     if (message.mode === 'readsmartcard') {
-      logger.info("MEDHIS readsmartcard mode activated");
+      logger.info("Smart card reading mode activated");
       this.sendMessage(ws, {
         message: RESPONSE_MESSAGES.CARD_READER_READY,
       });
+      this.startCardReading(ws);
       return;
     }
 

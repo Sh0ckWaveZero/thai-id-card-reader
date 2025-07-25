@@ -1,0 +1,71 @@
+{
+  "integrations": {
+    "medhis": {
+      "name": "MEDHIS Centrix",
+      "enabled": true,
+      "priority": 10,
+      "version": "2.0.0",
+      "validator": "medhis",
+      "messageFormat": {
+        "trigger": { "mode": "readsmartcard" },
+        "response": {
+          "message": "string",
+          "timestamp": "ISO8601"
+        }
+      },
+      "compatibilityMode": true,
+      "settings": {
+        "timeout": 30000,
+        "retryCount": 3,
+        "enableLogging": true
+      }
+    },
+    "hospital_x": {
+      "name": "Hospital System X",
+      "enabled": false,
+      "priority": 5,
+      "version": "1.0.0",
+      "validator": "hospital",
+      "messageFormat": {
+        "trigger": { 
+          "action": "read_card",
+          "department": "string"
+        },
+        "response": {
+          "type": "read_card",
+          "data": "object"
+        }
+      },
+      "compatibilityMode": false,
+      "settings": {
+        "apiEndpoint": "https://hospital-x.example.com/api",
+        "timeout": 15000,
+        "department": "outpatient"
+      }
+    },
+    "custom": [
+      {
+        "name": "Clinic Management System",
+        "enabled": false,
+        "priority": 1,
+        "version": "1.0.0",
+        "validator": "clinic",
+        "messageFormat": {
+          "trigger": { "command": "scan_id" },
+          "response": { "result": "object" }
+        },
+        "settings": {
+          "clinicId": "CLINIC001",
+          "timeout": 10000
+        }
+      }
+    ]
+  },
+  "general": {
+    "allowMultipleIntegrations": false,
+    "fallbackToGeneric": true,
+    "enableCompatibilityMode": true,
+    "logLevel": "info",
+    "healthCheckInterval": 60000
+  }
+}

@@ -17,6 +17,9 @@ export interface SmartCardReturnData {
   photoAsBase64Uri: string;
 }
 
+// Common alias for compatibility
+export type ThaiIDCardData = SmartCardReturnData;
+
 export interface MedisPatientData {
   mode: "readsmartcard";
   Citizenid: string;
@@ -37,8 +40,12 @@ export interface MedisPatientData {
 export interface WebSocketMessage {
   type?: 'startReading' | 'stopReading';
   mode?: string;
+  action?: string; // For generic integrations
   message?: string;
   error?: string;
+  data?: any; // Integration-specific data
+  integrationUsed?: string; // Track which integration processed the message
+  metadata?: Record<string, any>; // Additional integration-specific data
 }
 
 export interface HttpResponse<T = any> {
