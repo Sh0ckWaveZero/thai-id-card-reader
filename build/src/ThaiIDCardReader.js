@@ -16,11 +16,16 @@ const pcsclite_1 = __importDefault(require("pcsclite"));
 const events_1 = __importDefault(require("events"));
 const apdu_1 = require("./apdu/apdu");
 const moment_1 = __importDefault(require("moment"));
+const dataTransformer_1 = require("./utils/dataTransformer");
+const cardReaderConnection_1 = require("./core/cardReaderConnection");
+const commandSender_1 = require("./core/commandSender");
+const logger_1 = require("./utils/logger");
+const constants_1 = require("./config/constants");
 const legacy = require("legacy-encoding");
 class ThaiIDCardReader {
     constructor() {
-        this.readTimeout = 1;
-        this.insertCardDelay = 2000;
+        this.readTimeout = constants_1.CARD_READER_CONFIG.DEFAULT_READ_TIMEOUT;
+        this.insertCardDelay = constants_1.CARD_READER_CONFIG.DEFAULT_INSERT_DELAY;
         this.eventEmitter = new events_1.default();
     }
     setReadTimeout(timeout) {
@@ -31,24 +36,7 @@ class ThaiIDCardReader {
     }
     onReadComplete(callBack) {
         this.eventEmitter.on("READ_COMPLETE", (data) => {
-            const result = {
-                citizenID: data.citizenID,
-                fullNameEN: removeJunk(data.fullNameEN),
-                fullNameTH: removeJunk(data.fullNameTH),
-                titleEN: removeJunk(data.fullNameEN.split('#')[0]),
-                firstNameEN: removeJunk(data.fullNameEN.split('#')[1]),
-                lastNameEN: removeJunk(data.fullNameEN.split('#')[3]),
-                titleTH: removeJunk(data.fullNameTH.split('#')[0]),
-                firstNameTH: removeJunk(data.fullNameTH.split('#')[1]),
-                lastNameTH: removeJunk(data.fullNameTH.split('#')[3]),
-                dateOfBirth: data.dateOfBirth,
-                gender: (data.gender === '1') ? 'male' : 'female',
-                cardIssuer: removeJunk(data.cardIssuer),
-                issueDate: removeJunk(data.issueDate),
-                expireDate: removeJunk(data.expireDate),
-                address: removeJunk(data.address),
-                photoAsBase64Uri: 'data:image/jpeg;base64,' + data.photoAsBase64Uri
-            };
+            const result = dataTransformer_1.DataTransformer.processSmartCardData(data);
             callBack(result);
         });
     }
@@ -59,129 +47,126 @@ class ThaiIDCardReader {
     }
     init() {
         const that = this;
-        console.log("ThaiSmartCardConnector init");
+        logger_1.logger.info("ThaiSmartCardConnector init");
         const pcsc = (0, pcsclite_1.default)();
         pcsc.on("reader", function (reader) {
-            console.log("New reader detected", reader.name);
+            logger_1.logger.info("New reader detected", reader.name);
             reader.on("error", function (err) {
-                console.log("Error(", this.name, "):", err.message);
+                logger_1.logger.error("Error(", this.name, "):", err.message);
             });
             reader.on("status", function (status) {
                 return __awaiter(this, void 0, void 0, function* () {
-                    console.log("Status(", this.name, "):", status);
-                    /* check what has changed */
+                    logger_1.logger.debug("Status(", this.name, "):", status);
                     var changes = this.state ^ status.state;
                     if (changes) {
                         if (changes & this.SCARD_STATE_EMPTY &&
                             status.state & this.SCARD_STATE_EMPTY) {
-                            console.log("card removed"); /* card removed */
+                            logger_1.logger.info("card removed");
                             reader.disconnect(reader.SCARD_LEAVE_CARD, function (err) {
                                 if (err) {
-                                    console.log(err);
+                                    logger_1.logger.error(err);
                                 }
                                 else {
-                                    console.log("Disconnected");
+                                    logger_1.logger.info("Disconnected");
                                 }
                             });
                         }
                         else if (changes & this.SCARD_STATE_PRESENT &&
                             status.state & this.SCARD_STATE_PRESENT) {
-                            console.log("card inserted"); /* card inserted */
+                            logger_1.logger.info("card inserted");
                             yield delay(that.insertCardDelay);
-                            reader.connect({ share_mode: this.SCARD_SHARE_SHARED }, function (err, protocol) {
-                                return __awaiter(this, void 0, void 0, function* () {
-                                    if (err) {
-                                        console.log(err);
-                                    }
-                                    else {
-                                        console.log("Protocol(", reader.name, "):", protocol);
-                                        const sendRawCommand = (data) => __awaiter(this, void 0, void 0, function* () {
-                                            return new Promise((resolve, reject) => {
-                                                reader.transmit(Buffer.from(data), data[data.length - 1] + 2, protocol, function (err, data) {
-                                                    if (err) {
-                                                        reader.disconnect(() => {
-                                                            console.log('transmit error : disconnect');
-                                                        });
-                                                        console.log(err);
-                                                    }
-                                                    else {
-                                                        resolve(data);
-                                                        setTimeout(() => {
-                                                            reject();
-                                                        }, that.readTimeout);
-                                                    }
-                                                });
-                                            });
-                                        });
-                                        yield sendRawCommand(apdu_1.apdu.select);
-                                        const getData = (command) => __awaiter(this, void 0, void 0, function* () {
-                                            let temp = yield sendRawCommand(command);
-                                            let result = yield sendRawCommand([
-                                                ...apdu_1.apdu.getResponse,
-                                                temp[1],
-                                            ]);
-                                            result = result.slice(0, -2);
-                                            // console.log(legacy.decode(result, "tis620"))
-                                            return legacy.decode(result, "tis620");
-                                        });
-                                        const getPhoto = (command) => __awaiter(this, void 0, void 0, function* () {
-                                            let temp = yield sendRawCommand(command);
-                                            let result = yield sendRawCommand([
-                                                ...apdu_1.apdu.getResponse,
-                                                temp[1],
-                                            ]);
-                                            result = result.slice(0, -2);
-                                            return result;
-                                        });
-                                        let data = {};
-                                        data.citizenID = yield getData(apdu_1.apdu.citizenID);
-                                        data.fullNameTH = yield getData(apdu_1.apdu.fullNameTH);
-                                        data.fullNameEN = yield getData(apdu_1.apdu.fullNameEN);
-                                        data.gender = yield getData(apdu_1.apdu.gender);
-                                        data.cardIssuer = yield getData(apdu_1.apdu.cardIssuer);
-                                        data.dateOfBirth = (0, moment_1.default)(yield getData(apdu_1.apdu.dateOfBirth), 'YYYYMMDD').add(-543, 'years').format('YYYY-MM-DD');
-                                        data.issueDate = (0, moment_1.default)(yield getData(apdu_1.apdu.issueDate), 'YYYYMMDD').add(-543, 'years').format('YYYY-MM-DD');
-                                        data.expireDate = (0, moment_1.default)(yield getData(apdu_1.apdu.expireDate), 'YYYYMMDD').add(-543, 'years').format('YYYY-MM-DD');
-                                        data.address = yield getData(apdu_1.apdu.address);
-                                        let photo = Buffer.from([]);
-                                        for (let row of apdu_1.apdu.photos) {
-                                            let tempPhoto = yield getPhoto(row);
-                                            photo = Buffer.concat([photo, tempPhoto]);
-                                        }
-                                        const content = photo;
-                                        // console.log(content)
-                                        data.photoAsBase64Uri = content.toString("base64");
-                                        // fs.writeFileSync("test.jpg", content, "base64")
-                                        that.eventEmitter.emit("READ_COMPLETE", data);
-                                        reader.disconnect(() => {
-                                            console.log('read complete disconnect');
-                                        });
-                                    }
-                                });
+                            const connectionResult = yield cardReaderConnection_1.CardReaderConnection.attemptConnection(reader);
+                            if (!connectionResult.connected) {
+                                that.eventEmitter.emit("READ_ERROR", constants_1.RESPONSE_MESSAGES.CONNECTION_FAILED);
+                                return;
+                            }
+                            const protocol = connectionResult.protocol;
+                            logger_1.logger.info("Protocol(", reader.name, "):", protocol);
+                            const sendRawCommand = (data_1, ...args_1) => __awaiter(this, [data_1, ...args_1], void 0, function* (data, retries = 2) {
+                                return commandSender_1.CommandSender.sendRawCommand(reader, protocol, data, that.readTimeout, retries);
                             });
+                            try {
+                                logger_1.logger.info('Selecting card application...');
+                                yield sendRawCommand(apdu_1.apdu.select);
+                                logger_1.logger.info('Card application selected successfully');
+                                const getData = (command) => __awaiter(this, void 0, void 0, function* () {
+                                    let temp = yield sendRawCommand(command);
+                                    let result = yield sendRawCommand([
+                                        ...apdu_1.apdu.getResponse,
+                                        temp[1],
+                                    ]);
+                                    result = result.slice(0, -2);
+                                    return legacy.decode(result, "tis620");
+                                });
+                                const getPhoto = (command) => __awaiter(this, void 0, void 0, function* () {
+                                    let temp = yield sendRawCommand(command);
+                                    let result = yield sendRawCommand([
+                                        ...apdu_1.apdu.getResponse,
+                                        temp[1],
+                                    ]);
+                                    result = result.slice(0, -2);
+                                    return result;
+                                });
+                                logger_1.logger.info('Reading card data...');
+                                let data = {};
+                                try {
+                                    data.citizenID = yield getData(apdu_1.apdu.citizenID);
+                                    logger_1.logger.info('Citizen ID read successfully');
+                                }
+                                catch (error) {
+                                    logger_1.logger.error('Failed to read citizen ID:', error);
+                                    throw new Error('Failed to read citizen ID');
+                                }
+                                data.fullNameTH = yield getData(apdu_1.apdu.fullNameTH);
+                                data.fullNameEN = yield getData(apdu_1.apdu.fullNameEN);
+                                data.gender = yield getData(apdu_1.apdu.gender);
+                                data.cardIssuer = yield getData(apdu_1.apdu.cardIssuer);
+                                data.dateOfBirth = (0, moment_1.default)(yield getData(apdu_1.apdu.dateOfBirth), 'YYYYMMDD').add(-543, 'years').format('YYYY-MM-DD');
+                                data.issueDate = (0, moment_1.default)(yield getData(apdu_1.apdu.issueDate), 'YYYYMMDD').add(-543, 'years').format('YYYY-MM-DD');
+                                data.expireDate = (0, moment_1.default)(yield getData(apdu_1.apdu.expireDate), 'YYYYMMDD').add(-543, 'years').format('YYYY-MM-DD');
+                                data.address = yield getData(apdu_1.apdu.address);
+                                logger_1.logger.info('Reading photo data...');
+                                let photo = Buffer.from([]);
+                                for (let i = 0; i < apdu_1.apdu.photos.length; i++) {
+                                    try {
+                                        let tempPhoto = yield getPhoto(apdu_1.apdu.photos[i]);
+                                        photo = Buffer.concat([photo, tempPhoto]);
+                                        logger_1.logger.debug(`Photo segment ${i + 1}/${apdu_1.apdu.photos.length} read`);
+                                    }
+                                    catch (error) {
+                                        logger_1.logger.warn(`Failed to read photo segment ${i + 1}:`, error);
+                                        // Continue with other segments
+                                    }
+                                }
+                                data.photoAsBase64Uri = photo.toString("base64");
+                                logger_1.logger.info('Card data read successfully');
+                                that.eventEmitter.emit("READ_COMPLETE", data);
+                                reader.disconnect(() => {
+                                    logger_1.logger.info('read complete disconnect');
+                                });
+                            }
+                            catch (error) {
+                                logger_1.logger.error('Card reading error:', error);
+                                that.eventEmitter.emit("READ_ERROR", `Card reading failed: ${error.message}`);
+                                reader.disconnect(() => {
+                                    logger_1.logger.info('error disconnect');
+                                });
+                            }
                         }
                     }
                 });
             });
             reader.on("end", function () {
-                console.log("Reader", this.name, "removed");
+                logger_1.logger.info("Reader", this.name, "removed");
             });
         });
         pcsc.on("error", (err) => {
-            console.log("PCSC error", err.message);
+            logger_1.logger.error("PCSC error", err.message);
             this.eventEmitter.emit("READ_ERROR", err.message);
         });
     }
 }
 exports.default = ThaiIDCardReader;
-function removeJunk(str) {
-    let temp = str;
-    temp = temp.replace(/#/g, ' ');
-    temp = temp.replace(/\s{2,}/g, ' ');
-    if (temp[temp.length - 1] === ' ')
-        temp = temp.slice(0, -1);
-    return temp;
-}
 function delay(timeout) {
     return new Promise((resolve, reject) => {
         setTimeout(() => {

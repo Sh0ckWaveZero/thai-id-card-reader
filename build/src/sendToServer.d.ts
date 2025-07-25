@@ -13,5 +13,5 @@ interface cardData {
     expire: string;
     photo: string;
 }
-export default function sendToServer(data: cardData): null | undefined;
+export default function sendToServer(data: cardData): any;
 export {};

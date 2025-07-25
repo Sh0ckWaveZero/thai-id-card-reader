@@ -1,16 +1,15 @@
 {
-  "devDependencies": {
-    "@types/node": "^18.11.9"
-  },
   "name": "thai-id-card-reader",
   "version": "1.0.50",
   "main": "build/src/ThaiIDCardReader.js",
   "types": "build/src/ThaiIDCardReader.d.ts",
   "publishConfig": {
-    "registry": "https://github.com/goomgumx/thai-id-card-reader.git"
+    "registry": "https://github.com/Sh0ckWaveZero/thai-id-card-reader.git"
   },
   "scripts": {
     "start": "ts-node src/index.ts",
+    "setup-cert": "./generate-cert.sh",
+    "dev": "npm run setup-cert && npm start",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
@@ -28,7 +27,13 @@
     "legacy-encoding": "^3.0.0",
     "moment": "^2.29.4",
     "pcsclite": "^1.0.1",
-    "thai-id-card-reader": "^1.0.42"
+    "thai-id-card-reader": "^1.0.42",
+    "ts-node": "^10.9.2",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "@types/node": "^18.11.9",
+    "@types/ws": "^8.18.1"
   },
   "description": ""
 }

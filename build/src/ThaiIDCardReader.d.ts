@@ -1,4 +1,4 @@
-import { SmartCardReturnData } from "./SmartCardReturnData";
+import { SmartCardReturnData } from "./types";
 export default class ThaiIDCardReader {
     private eventEmitter;
     private readTimeout;
