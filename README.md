@@ -9,7 +9,7 @@
 - 🔌 HTTP API endpoint for card reading
 - 🔒 HTTPS support with SSL certificates
 - 📊 Structured logging system
-- 🛡️ Robust error handling and retry logic
+- 🛡️ Enhanced error handling with PC/SC error management and validation
 - 🏗️ Clean, maintainable TypeScript architecture
 - 📱 Cross-platform support (macOS, Windows, Linux)
 
@@ -77,7 +77,6 @@ npm run setup-cert && npm start
 
 **Server Endpoints:**
 - WebSocket: `ws://localhost:8182` 
-- HTTP API: `http://localhost:8085/readnationcard`
 - HTTPS: `https://localhost:8085` (if certificates available)
 
 ### MEDHIS Centrix Integration
@@ -151,17 +150,13 @@ src/
 ├── types/
 │   └── index.ts              # TypeScript interfaces
 ├── utils/
-│   ├── logger.ts             # Logging system
-│   ├── addressParser.ts      # Address parsing utilities
-│   └── dataTransformer.ts    # Data transformation
+│   ├── messageValidator.ts   # Message validation utilities
+│   └── pcscErrorHandler.ts   # PC/SC error handling
 ├── core/
 │   ├── cardReaderConnection.ts # Connection management
 │   └── commandSender.ts       # APDU command handling
 ├── servers/
-│   ├── httpServer.ts         # HTTP/HTTPS server
 │   └── websocketServer.ts    # WebSocket server
-├── apdu/
-│   └── apdu.ts               # Smart card APDU commands
 ├── ThaiIDCardReader.ts       # Main card reader class
 └── index.ts                  # Application entry point
 ```
@@ -170,10 +165,10 @@ src/
 
 - **🔌 Connection Manager**: Handles multiple connection modes with retry logic
 - **📡 Command Sender**: Manages APDU command transmission with timeout handling  
-- **🔄 Data Transformer**: Converts between library and MEDHIS formats
-- **📍 Address Parser**: Extracts address components using regex patterns
+- **✅ Message Validator**: Validates incoming WebSocket messages and data integrity
+- **🛡️ PC/SC Error Handler**: Comprehensive error handling for smart card operations
 - **📊 Logger**: Structured logging with configurable levels
-- **🌐 Server Managers**: Separate HTTP and WebSocket server implementations
+- **🌐 WebSocket Server**: Real-time communication server for web applications
 
 ## ⚙️ Configuration
 
@@ -205,7 +200,12 @@ export const CARD_READER_CONFIG = {
   CONNECTION_TIMEOUT: 5000,     // milliseconds
   MAX_RETRIES: 3,               // retry attempts
   RETRY_DELAY_BASE: 1000,       // milliseconds
-  COMMAND_MIN_TIMEOUT: 3000     // milliseconds
+  COMMAND_MIN_TIMEOUT: 3000,    // milliseconds
+  // Enhanced stability settings
+  CITIZEN_ID_RETRIES: 5,        // citizen ID read retries
+  CITIZEN_ID_TIMEOUT: 10000,    // citizen ID timeout (ms)
+  CARD_STABILIZATION_DELAY: 1500,  // card stabilization delay
+  TRANSACTION_RETRY_DELAY: 2000     // transaction retry delay
 }
 ```
 

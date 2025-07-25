@@ -3,6 +3,7 @@ import ThaiIDCardReader from "../ThaiIDCardReader";
 import { SERVER_CONFIG, CARD_READER_CONFIG, RESPONSE_MESSAGES } from "../config/constants";
 import { WebSocketMessage } from "../types";
 import { DataTransformer } from "../utils/dataTransformer";
+import { MessageValidator } from "../utils/messageValidator";
 import { logger } from "../utils/logger";
 
 export class WebSocketServerManager {
@@ -56,19 +57,40 @@ export class WebSocketServerManager {
   }
 
   private handleMessage(ws: WebSocket, data: any): void {
-    logger.debug("Received:", data.toString());
+    const sanitizedData = MessageValidator.sanitizeString(data.toString());
+    logger.debug("Received:", sanitizedData);
 
-    try {
-      const message: WebSocketMessage = JSON.parse(data.toString());
-      this.processMessage(ws, message);
-    } catch (e) {
+    // First try MEDHIS-style validation for backward compatibility
+    const medisValidation = MessageValidator.validateMedisMessage(sanitizedData);
+    if (medisValidation.isValid && medisValidation.message) {
+      this.processMessage(ws, medisValidation.message);
+      return;
+    }
+
+    // Try standard WebSocket message validation
+    const validation = MessageValidator.validateWebSocketMessage(sanitizedData);
+    
+    if (validation.isValid && validation.message) {
+      this.processMessage(ws, validation.message);
+    } else {
+      logger.warn("Invalid message received:", validation.error);
       this.sendMessage(ws, {
-        error: RESPONSE_MESSAGES.INVALID_JSON,
+        error: validation.error || RESPONSE_MESSAGES.INVALID_JSON,
       });
     }
   }
 
   private processMessage(ws: WebSocket, message: WebSocketMessage): void {
+    // Handle MEDHIS-style messages
+    if (message.mode === 'readsmartcard') {
+      logger.info("MEDHIS readsmartcard mode activated");
+      this.sendMessage(ws, {
+        message: RESPONSE_MESSAGES.CARD_READER_READY,
+      });
+      return;
+    }
+
+    // Handle standard message types
     switch (message.type) {
       case "startReading":
         logger.info("Starting card reading...");

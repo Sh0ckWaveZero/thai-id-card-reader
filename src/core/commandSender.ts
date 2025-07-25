@@ -1,10 +1,12 @@
 import { CARD_READER_CONFIG } from "../config/constants";
+import { PCReader, PCProtocol } from "../types";
+import { PCSCErrorHandler } from "../utils/pcscErrorHandler";
 import { logger } from "../utils/logger";
 
 export class CommandSender {
   static async sendRawCommand(
-    reader: any,
-    protocol: any,
+    reader: PCReader,
+    protocol: PCProtocol,
     data: number[],
     readTimeout: number,
     retries: number = 2
@@ -13,19 +15,33 @@ export class CommandSender {
       try {
         return await this.transmitCommand(reader, protocol, data, readTimeout);
       } catch (error) {
-        logger.warn(`Command failed, attempt ${attempt + 1}/${retries + 1}:`, (error as Error).message);
+        const err = error as Error;
+        
+        // Check for protocol mismatch during command transmission
+        if (PCSCErrorHandler.isProtocolMismatchError(err)) {
+          logger.warn(`Protocol mismatch during command, attempt ${attempt + 1}/${retries + 1}:`, err.message);
+          // For protocol mismatch, wait longer before retry to allow protocol reset
+          if (attempt < retries) {
+            await this.delay(2000); // Longer delay for protocol issues
+          }
+        } else {
+          logger.warn(`Command failed, attempt ${attempt + 1}/${retries + 1}:`, err.message);
+          if (attempt < retries) {
+            await this.delay(500);
+          }
+        }
+        
         if (attempt === retries) {
           throw error;
         }
-        await this.delay(500);
       }
     }
     throw new Error('All command attempts failed');
   }
 
   private static transmitCommand(
-    reader: any,
-    protocol: any,
+    reader: PCReader,
+    protocol: PCProtocol,
     data: number[],
     readTimeout: number
   ): Promise<Buffer> {
@@ -38,12 +54,14 @@ export class CommandSender {
         Buffer.from(data),
         data[data.length - 1] + 2,
         protocol,
-        (err: any, responseData: Buffer) => {
+        (err: Error | null, responseData?: Buffer) => {
           clearTimeout(timeout);
           if (err) {
             reject(err);
-          } else {
+          } else if (responseData) {
             resolve(responseData);
+          } else {
+            reject(new Error('Transmission successful but no response data received'));
           }
         }
       );

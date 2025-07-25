@@ -2,10 +2,11 @@ import PCSC from "pcsclite"
 import EventEmitter from "events"
 import { apdu } from "./apdu/apdu"
 import moment from 'moment'
-import { SmartCardReturnData } from "./types"
+import { SmartCardReturnData, PCSC as IPcsc, PCReader } from "./types"
 import { DataTransformer } from "./utils/dataTransformer"
 import { CardReaderConnection } from "./core/cardReaderConnection"
 import { CommandSender } from "./core/commandSender"
+import { PCSCErrorHandler } from "./utils/pcscErrorHandler"
 import { logger } from "./utils/logger"
 import { CARD_READER_CONFIG, RESPONSE_MESSAGES } from "./config/constants"
 const legacy = require("legacy-encoding")
@@ -38,8 +39,8 @@ export default class ThaiIDCardReader {
   init() {
     const that = this
     logger.info("ThaiSmartCardConnector init")
-    const pcsc = PCSC()
-    pcsc.on("reader", function (reader) {
+    const pcsc = PCSC() as IPcsc
+    pcsc.on("reader", function (reader: PCReader) {
       logger.info("New reader detected", reader.name)
 
       reader.on("error", function (err) {
@@ -58,7 +59,7 @@ export default class ThaiIDCardReader {
             logger.info("card removed")
             reader.disconnect(reader.SCARD_LEAVE_CARD, function (err) {
               if (err) {
-                logger.error(err)
+                logger.error('Disconnect error:', err.message)
               } else {
                 logger.info("Disconnected")
               }
@@ -89,6 +90,12 @@ export default class ThaiIDCardReader {
               await sendRawCommand(apdu.select)
               logger.info('Card application selected successfully')
               
+              // Validate card state before reading
+              const isCardReady = await PCSCErrorHandler.validateCardState(reader);
+              if (!isCardReady) {
+                throw new Error('Card not ready for reading');
+              }
+              
               const getData = async (command: number[]) => {
                 let temp = await sendRawCommand(command)
                 let result = await sendRawCommand([
@@ -111,12 +118,17 @@ export default class ThaiIDCardReader {
               logger.info('Reading card data...')
               let data: Partial<SmartCardReturnData> = {}
               
+              // Enhanced citizen ID reading with retry logic
               try {
-                data.citizenID = await getData(apdu.citizenID)
-                logger.info('Citizen ID read successfully')
+                data.citizenID = await PCSCErrorHandler.retryWithBackoff(
+                  () => getData(apdu.citizenID),
+                  CARD_READER_CONFIG.CITIZEN_ID_RETRIES
+                );
+                logger.info('Citizen ID read successfully');
               } catch (error) {
-                logger.error('Failed to read citizen ID:', error)
-                throw new Error('Failed to read citizen ID')
+                const errorInfo = PCSCErrorHandler.analyzeError(error as Error);
+                logger.error('Failed to read citizen ID:', errorInfo.message);
+                throw new Error(errorInfo.userMessage);
               }
               
               data.fullNameTH = await getData(apdu.fullNameTH)
@@ -144,13 +156,27 @@ export default class ThaiIDCardReader {
               
               logger.info('Card data read successfully')
               that.eventEmitter.emit("READ_COMPLETE", data)
-              reader.disconnect(()=>{
+              reader.disconnect(reader.SCARD_LEAVE_CARD, ()=>{
                 logger.info('read complete disconnect')
               })
             } catch (error) {
-              logger.error('Card reading error:', error)
-              that.eventEmitter.emit("READ_ERROR", `Card reading failed: ${(error as Error).message}`)
-              reader.disconnect(()=>{
+              const cardError = error as Error;
+              
+              // Enhanced error handling with PCSC error analysis
+              if (PCSCErrorHandler.isProtocolMismatchError(cardError)) {
+                logger.error('Card reading error (protocol mismatch):', cardError.message);
+                const errorInfo = PCSCErrorHandler.analyzeError(cardError);
+                that.eventEmitter.emit("READ_ERROR", errorInfo.userMessage);
+              } else if (PCSCErrorHandler.isCitizenIdError(cardError)) {
+                const errorInfo = PCSCErrorHandler.analyzeError(cardError);
+                logger.error('Card reading error (citizen ID):', errorInfo.message);
+                that.eventEmitter.emit("READ_ERROR", errorInfo.userMessage);
+              } else {
+                logger.error('Card reading error (general):', cardError.message);
+                that.eventEmitter.emit("READ_ERROR", `Card reading failed: ${cardError.message}`);
+              }
+              
+              reader.disconnect(reader.SCARD_LEAVE_CARD, ()=>{
                 logger.info('error disconnect')
               })
             }

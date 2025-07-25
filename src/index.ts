@@ -3,6 +3,7 @@ import { WebSocketServer } from "ws";
 import * as http from "http";
 import * as https from "https";
 import * as fs from "fs";
+import { MessageValidator } from "./utils/messageValidator";
 
 // Helper functions to extract address components from Thai address string
 function extractHouseNumber(address: string): string {
@@ -182,10 +183,28 @@ wss.on("connection", function connection(ws) {
   });
 
   ws.on("message", function message(data) {
-    console.log("Received:", data.toString());
+    const sanitizedData = MessageValidator.sanitizeString(data.toString());
+    console.log("Received:", sanitizedData);
 
-    try {
-      const message = JSON.parse(data.toString());
+    // First try MEDHIS-style validation for backward compatibility
+    const medisValidation = MessageValidator.validateMedisMessage(sanitizedData);
+    if (medisValidation.isValid && medisValidation.message) {
+      if (medisValidation.message.mode === 'readsmartcard') {
+        console.log("MEDHIS readsmartcard mode activated");
+        ws.send(
+          JSON.stringify({
+            message: "Card reader is ready. Please insert card.",
+          })
+        );
+        return;
+      }
+    }
+
+    // Try standard WebSocket message validation
+    const validation = MessageValidator.validateWebSocketMessage(sanitizedData);
+    
+    if (validation.isValid && validation.message) {
+      const message = validation.message;
 
       switch (message.type) {
         case "startReading":
@@ -215,10 +234,11 @@ wss.on("connection", function connection(ws) {
             })
           );
       }
-    } catch (e) {
+    } else {
+      console.warn("Invalid message received:", validation.error);
       ws.send(
         JSON.stringify({
-          error: "Invalid JSON message",
+          error: validation.error || "Invalid JSON message",
         })
       );
     }

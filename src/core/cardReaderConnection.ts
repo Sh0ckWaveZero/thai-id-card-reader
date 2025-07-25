@@ -1,5 +1,6 @@
-import { CARD_READER_CONFIG } from "../config/constants";
-import { ConnectionMode } from "../types";
+import { CARD_READER_CONFIG, PROTOCOL_STRATEGIES } from "../config/constants";
+import { ConnectionMode, PCReader, PCProtocol, ConnectionResult } from "../types";
+import { PCSCErrorHandler } from "../utils/pcscErrorHandler";
 import { logger } from "../utils/logger";
 
 export class CardReaderConnection {
@@ -9,9 +10,9 @@ export class CardReaderConnection {
     'SCARD_SHARE_DIRECT'
   ];
 
-  static async attemptConnection(reader: any): Promise<{ connected: boolean; protocol: any }> {
+  static async attemptConnection(reader: PCReader): Promise<ConnectionResult> {
     let connected = false;
-    let protocol: any = null;
+    let protocol: PCProtocol | null = null;
 
     for (const mode of this.CONNECTION_MODES) {
       const result = await this.tryConnectionMode(reader, mode);
@@ -25,7 +26,45 @@ export class CardReaderConnection {
     return { connected, protocol };
   }
 
-  private static async tryConnectionMode(reader: any, mode: ConnectionMode): Promise<{ connected: boolean; protocol: any }> {
+  /**
+   * Reconnects with protocol handling for protocol mismatch errors
+   */
+  static async reconnectWithProtocolHandling(reader: PCReader): Promise<ConnectionResult> {
+    logger.info('Attempting reconnection with protocol handling...');
+    
+    // Disconnect first to reset connection state
+    try {
+      reader.disconnect(reader.SCARD_LEAVE_CARD, () => {
+        logger.debug('Disconnected for protocol reset');
+      });
+      
+      // Brief delay to allow card to reset
+      await this.delay(PROTOCOL_STRATEGIES.PROTOCOL_RETRY_DELAY);
+      
+    } catch (error) {
+      logger.warn('Disconnect during protocol reset failed:', (error as Error).message);
+    }
+
+    // Try connection with different approaches
+    for (let protocolAttempt = 0; protocolAttempt < PROTOCOL_STRATEGIES.MAX_PROTOCOL_RETRIES; protocolAttempt++) {
+      logger.info(`Protocol reconnection attempt ${protocolAttempt + 1}/${PROTOCOL_STRATEGIES.MAX_PROTOCOL_RETRIES}`);
+      
+      const result = await this.attemptConnection(reader);
+      if (result.connected) {
+        logger.info('Successfully reconnected with compatible protocol');
+        return result;
+      }
+      
+      if (protocolAttempt < PROTOCOL_STRATEGIES.MAX_PROTOCOL_RETRIES - 1) {
+        await this.delay(PROTOCOL_STRATEGIES.PROTOCOL_RETRY_DELAY);
+      }
+    }
+
+    logger.error('Failed to reconnect with compatible protocol');
+    return { connected: false, protocol: null };
+  }
+
+  private static async tryConnectionMode(reader: PCReader, mode: ConnectionMode): Promise<ConnectionResult> {
     const scardMode = this.getScardMode(reader, mode);
     
     for (let retry = 0; retry < CARD_READER_CONFIG.MAX_RETRIES; retry++) {
@@ -41,7 +80,23 @@ export class CardReaderConnection {
         return { connected: true, protocol };
         
       } catch (error) {
-        logger.warn(`Mode ${mode}, retry ${retry + 1} failed:`, (error as Error).message);
+        const err = error as Error;
+        
+        // Check if it's a protocol mismatch error
+        if (PCSCErrorHandler.isProtocolMismatchError(err)) {
+          logger.warn(`Protocol mismatch in mode ${mode}, retry ${retry + 1}:`, err.message);
+          // For protocol mismatch, try reconnecting with protocol handling
+          if (retry === CARD_READER_CONFIG.MAX_RETRIES - 1) {
+            logger.info('Attempting protocol reconnection...');
+            const reconnectResult = await this.reconnectWithProtocolHandling(reader);
+            if (reconnectResult.connected) {
+              return reconnectResult;
+            }
+          }
+        } else {
+          logger.warn(`Mode ${mode}, retry ${retry + 1} failed:`, err.message);
+        }
+        
         if (retry === CARD_READER_CONFIG.MAX_RETRIES - 1) {
           logger.warn(`All retries exhausted for mode ${mode}`);
         }
@@ -51,7 +106,7 @@ export class CardReaderConnection {
     return { connected: false, protocol: null };
   }
 
-  private static getScardMode(reader: any, mode: ConnectionMode): any {
+  private static getScardMode(reader: PCReader, mode: ConnectionMode): number {
     switch (mode) {
       case 'SCARD_SHARE_SHARED':
         return reader.SCARD_SHARE_SHARED;
@@ -62,18 +117,20 @@ export class CardReaderConnection {
     }
   }
 
-  private static connectWithTimeout(reader: any, shareMode: any): Promise<any> {
+  private static connectWithTimeout(reader: PCReader, shareMode: number): Promise<PCProtocol> {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         reject(new Error('Connection timeout'));
       }, CARD_READER_CONFIG.CONNECTION_TIMEOUT);
       
-      reader.connect({ share_mode: shareMode }, (err: any, protocol: any) => {
+      reader.connect({ share_mode: shareMode }, (err: Error | null, protocol?: PCProtocol) => {
         clearTimeout(timeout);
         if (err) {
           reject(err);
-        } else {
+        } else if (protocol) {
           resolve(protocol);
+        } else {
+          reject(new Error('Connection successful but no protocol returned'));
         }
       });
     });

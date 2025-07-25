@@ -56,3 +56,51 @@ export interface AddressComponents {
 }
 
 export type ConnectionMode = 'SCARD_SHARE_SHARED' | 'SCARD_SHARE_EXCLUSIVE' | 'SCARD_SHARE_DIRECT';
+
+// PCSC Library Interfaces
+export interface PCReader {
+  name: string;
+  state: number;
+  SCARD_STATE_EMPTY: number;
+  SCARD_STATE_PRESENT: number;
+  SCARD_LEAVE_CARD: number;
+  SCARD_SHARE_SHARED: number;
+  SCARD_SHARE_EXCLUSIVE: number;
+  SCARD_SHARE_DIRECT: number;
+  
+  on(event: 'error', callback: (err: Error) => void): void;
+  on(event: 'status', callback: (status: PCReaderStatus) => void): void;
+  on(event: 'end', callback: () => void): void;
+  
+  connect(options: PCConnectOptions, callback: (err: Error | null, protocol?: PCProtocol) => void): void;
+  disconnect(disposition: number, callback?: (err: Error | null) => void): void;
+  transmit(
+    buffer: Buffer,
+    responseLength: number,
+    protocol: PCProtocol,
+    callback: (err: Error | null, response?: Buffer) => void
+  ): void;
+}
+
+export interface PCReaderStatus {
+  state: number;
+}
+
+export interface PCConnectOptions {
+  share_mode: number;
+}
+
+export interface PCProtocol {
+  // Protocol is typically a number representing the protocol type
+  // This is often an opaque value from the PCSC library
+}
+
+export interface PCSC {
+  on(event: 'reader', callback: (reader: PCReader) => void): void;
+  on(event: 'error', callback: (err: Error) => void): void;
+}
+
+export interface ConnectionResult {
+  connected: boolean;
+  protocol: PCProtocol | null;
+}
