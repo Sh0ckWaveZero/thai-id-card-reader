@@ -45,12 +45,12 @@ export class HttpServerManager {
     reader.setInsertCardDelay(CARD_READER_CONFIG.DEFAULT_INSERT_DELAY);
     reader.setReadTimeout(CARD_READER_CONFIG.DEFAULT_READ_TIMEOUT);
 
-    reader.onReadComplete((data) => {
+    reader.onReadComplete((data: any) => {
       logger.info("Card data read via HTTP", data);
       this.sendSuccessResponse(res, { data });
     });
 
-    reader.onReadError((error) => {
+    reader.onReadError((error: string) => {
       logger.error("Card read error via HTTP:", error);
       this.sendErrorResponse(res, 500, error);
     });

@@ -55,7 +55,7 @@ const requestHandler = (
     reader.setInsertCardDelay(CARD_READER_CONFIG.DEFAULT_INSERT_DELAY);
     reader.setReadTimeout(CARD_READER_CONFIG.DEFAULT_READ_TIMEOUT);
 
-    reader.onReadComplete((data) => {
+    reader.onReadComplete((data: any) => {
       logger.info("Card data read via HTTP:", data);
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(
@@ -66,7 +66,7 @@ const requestHandler = (
       );
     });
 
-    reader.onReadError((error) => {
+    reader.onReadError((error: string) => {
       logger.error("Card read error via HTTP:", error);
       res.writeHead(500, { "Content-Type": "application/json" });
       res.end(
@@ -145,7 +145,7 @@ wss.on("connection", function connection(ws) {
   reader.setInsertCardDelay(CARD_READER_CONFIG.DEFAULT_INSERT_DELAY);
   reader.setReadTimeout(CARD_READER_CONFIG.DEFAULT_READ_TIMEOUT);
 
-  reader.onReadComplete((data) => {
+  reader.onReadComplete((data: any) => {
     logger.info("Card data read:", data);
 
     // Transform data to match the desired patient data structure
@@ -173,7 +173,7 @@ wss.on("connection", function connection(ws) {
     ws.send(JSON.stringify(patientData));
   });
 
-  reader.onReadError((error) => {
+  reader.onReadError((error: string) => {
     logger.error("Card read error:", error);
     // Send error in the format expected by client
     ws.send(

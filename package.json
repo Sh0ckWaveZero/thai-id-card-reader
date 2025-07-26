@@ -1,8 +1,8 @@
 {
   "name": "thai-id-card-reader",
   "version": "1.0.50",
-  "main": "build/src/ThaiIDCardReader.js",
-  "types": "build/src/ThaiIDCardReader.d.ts",
+  "main": "build/src/thaiIdCardReader.js",
+  "types": "build/src/thaiIdCardReader.d.ts",
   "publishConfig": {
     "registry": "https://github.com/Sh0ckWaveZero/thai-id-card-reader.git"
   },

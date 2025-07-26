@@ -40,7 +40,7 @@ export class WebSocketServerManager {
     reader.setInsertCardDelay(CARD_READER_CONFIG.DEFAULT_INSERT_DELAY);
     reader.setReadTimeout(CARD_READER_CONFIG.DEFAULT_READ_TIMEOUT);
 
-    reader.onReadComplete((data) => {
+    reader.onReadComplete((data: any) => {
       logger.info("Card data read:", data);
       const processedData = DataTransformer.processSmartCardData(data as any);
       const patientData = DataTransformer.smartCardToMedis(processedData);
@@ -49,7 +49,7 @@ export class WebSocketServerManager {
       ws.send(JSON.stringify(patientData));
     });
 
-    reader.onReadError((error) => {
+    reader.onReadError((error: string) => {
       logger.error("Card read error:", error);
       this.sendMessage(ws, { error });
     });
