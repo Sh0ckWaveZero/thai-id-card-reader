@@ -3,7 +3,7 @@
  * Validates MEDHIS-specific message formats
  */
 
-import { BaseValidator } from '../base/base-validator';
+import { BaseValidator } from '../base/baseValidator';
 import { ValidationResult, MedhisMessage } from '../../types/integration';
 
 export class MedhisValidator extends BaseValidator<MedhisMessage> {

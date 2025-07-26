@@ -1,9 +1,11 @@
-import ThaiIDCardReader from "./ThaiIDCardReader";
+import ThaiIDCardReader from "./thaiIdCardReader";
 import { WebSocketServer } from "ws";
 import * as http from "http";
 import * as https from "https";
 import * as fs from "fs";
 import { MessageValidator } from "./utils/messageValidator";
+import { logger } from "./utils/logger";
+import { SERVER_CONFIG, CARD_READER_CONFIG } from "./config/constants";
 
 // Helper functions to extract address components from Thai address string
 function extractHouseNumber(address: string): string {
@@ -46,15 +48,15 @@ const requestHandler = (
   }
 
   if (req.url === "/readnationcard" && req.method === "POST") {
-    console.log("HTTP request received for card reading");
+    logger.info("HTTP request received for card reading");
 
     const reader = new ThaiIDCardReader();
     reader.init();
-    reader.setInsertCardDelay(500); // Increased for better reliability
-    reader.setReadTimeout(15); // Increased timeout
+    reader.setInsertCardDelay(CARD_READER_CONFIG.DEFAULT_INSERT_DELAY);
+    reader.setReadTimeout(CARD_READER_CONFIG.DEFAULT_READ_TIMEOUT);
 
     reader.onReadComplete((data) => {
-      console.log("Card data read via HTTP:", data);
+      logger.info("Card data read via HTTP:", data);
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(
         JSON.stringify({
@@ -65,7 +67,7 @@ const requestHandler = (
     });
 
     reader.onReadError((error) => {
-      console.log("Card read error via HTTP:", error);
+      logger.error("Card read error via HTTP:", error);
       res.writeHead(500, { "Content-Type": "application/json" });
       res.end(
         JSON.stringify({
@@ -100,32 +102,32 @@ try {
     };
 
     const httpsServer = https.createServer(httpsOptions, requestHandler);
-    httpsServer.listen(8085, () => {
-      console.log("HTTPS server listening on port 8085");
+    httpsServer.listen(SERVER_CONFIG.HTTP_PORT, () => {
+      logger.info(`HTTPS server listening on port ${SERVER_CONFIG.HTTP_PORT}`);
     });
   } else {
     // Create HTTP server for REST API if no certificates
     const httpServer = http.createServer(requestHandler);
-    httpServer.listen(8085, () => {
-      console.log("HTTP server listening on port 8085");
+    httpServer.listen(SERVER_CONFIG.HTTP_PORT, () => {
+      logger.info(`HTTP server listening on port ${SERVER_CONFIG.HTTP_PORT}`);
     });
   }
 } catch (error) {
-  console.log("Server startup error:", error);
+  logger.error("Server startup error:", error);
   // Fallback to HTTP server
   const httpServer = http.createServer(requestHandler);
-  httpServer.listen(8085, () => {
-    console.log("HTTP server listening on port 8085 (fallback)");
+  httpServer.listen(SERVER_CONFIG.HTTP_PORT, () => {
+    logger.info(`HTTP server listening on port ${SERVER_CONFIG.HTTP_PORT} (fallback)`);
   });
 }
 
 // Create WebSocket server
-const wss = new WebSocketServer({ port: 8182 });
+const wss = new WebSocketServer({ port: SERVER_CONFIG.WEBSOCKET_PORT });
 
-console.log("WebSocket server listening on port 8182");
+logger.info(`WebSocket server listening on port ${SERVER_CONFIG.WEBSOCKET_PORT}`);
 
 wss.on("connection", function connection(ws) {
-  console.log("Client connected");
+  logger.info("Client connected");
 
   // Send welcome message
   ws.send(
@@ -140,12 +142,11 @@ wss.on("connection", function connection(ws) {
 
   // setInsertCardDelay : if run on windows set it to 1000 or try more than 1000 if it error
   // For macOS, try a small delay to help with card detection
-  reader.setInsertCardDelay(500); // Increased from 0 for better reliability
-  // Increased timeout for macOS compatibility
-  reader.setReadTimeout(15); // Increased from 10
+  reader.setInsertCardDelay(CARD_READER_CONFIG.DEFAULT_INSERT_DELAY);
+  reader.setReadTimeout(CARD_READER_CONFIG.DEFAULT_READ_TIMEOUT);
 
   reader.onReadComplete((data) => {
-    console.log("Card data read:", data);
+    logger.info("Card data read:", data);
 
     // Transform data to match the desired patient data structure
     const patientData = {
@@ -167,13 +168,13 @@ wss.on("connection", function connection(ws) {
         : "",
     };
 
-    console.log("Sending patient data:", patientData);
+    logger.info("Sending patient data:", patientData);
     // Send patient data directly (not wrapped in a message object)
     ws.send(JSON.stringify(patientData));
   });
 
   reader.onReadError((error) => {
-    console.log("Card read error:", error);
+    logger.error("Card read error:", error);
     // Send error in the format expected by client
     ws.send(
       JSON.stringify({
@@ -184,13 +185,13 @@ wss.on("connection", function connection(ws) {
 
   ws.on("message", function message(data) {
     const sanitizedData = MessageValidator.sanitizeString(data.toString());
-    console.log("Received:", sanitizedData);
+    logger.debug("Received:", sanitizedData);
 
     // First try MEDHIS-style validation for backward compatibility
     const medisValidation = MessageValidator.validateMedisMessage(sanitizedData);
     if (medisValidation.isValid && medisValidation.message) {
       if (medisValidation.message.mode === 'readsmartcard') {
-        console.log("MEDHIS readsmartcard mode activated");
+        logger.info("MEDHIS readsmartcard mode activated");
         ws.send(
           JSON.stringify({
             message: "Card reader is ready. Please insert card.",
@@ -208,7 +209,7 @@ wss.on("connection", function connection(ws) {
 
       switch (message.type) {
         case "startReading":
-          console.log("Starting card reading...");
+          logger.info("Starting card reading...");
           // Card reader is already initialized and listening
           ws.send(
             JSON.stringify({
@@ -218,7 +219,7 @@ wss.on("connection", function connection(ws) {
           break;
 
         case "stopReading":
-          console.log("Stopping card reading...");
+          logger.info("Stopping card reading...");
           // You might want to implement a stop method in ThaiIDCardReader
           ws.send(
             JSON.stringify({
@@ -235,7 +236,7 @@ wss.on("connection", function connection(ws) {
           );
       }
     } else {
-      console.warn("Invalid message received:", validation.error);
+      logger.warn("Invalid message received:", validation.error);
       ws.send(
         JSON.stringify({
           error: validation.error || "Invalid JSON message",
@@ -245,6 +246,6 @@ wss.on("connection", function connection(ws) {
   });
 
   ws.on("close", function close() {
-    console.log("Client disconnected");
+    logger.info("Client disconnected");
   });
 });

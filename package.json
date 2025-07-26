@@ -43,5 +43,5 @@
     "ts-jest": "^29.1.0",
     "typescript": "^5.0.0"
   },
-  "description": ""
+  "description": "TypeScript library for reading Thai national ID cards with WebSocket server support, multi-hospital integration system, and comprehensive testing infrastructure"
 }

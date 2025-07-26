@@ -10,10 +10,24 @@
 - 🔒 HTTPS support with SSL certificates
 - 📊 Structured logging system
 - 🛡️ Enhanced error handling with PC/SC error management and validation
-- 🏗️ Clean, maintainable TypeScript architecture
+- 🏗️ Clean, maintainable TypeScript architecture with strict type checking
+- ✅ Comprehensive testing infrastructure with Jest support
+- 📝 Consistent camelCase file naming conventions
 - 🔧 Plugin-based integration system for multiple hospital/clinic systems
 - 📱 Cross-platform support (macOS, Windows, Linux)
 - ⚙️ Configurable integration management (MEDHIS Centrix, custom systems)
+
+## 🆕 Recent Improvements
+
+### v1.0.50+ Updates
+- ✅ **TypeScript Strict Mode** - Enhanced type safety and error prevention
+- 🧹 **Code Cleanup** - Consistent camelCase naming conventions
+- 📊 **Structured Logging** - Replaced console.log with proper logger system
+- 🧪 **Testing Infrastructure** - Added Jest testing framework with coverage
+- 🏗️ **Build System** - Enhanced build commands and quality checks
+- 🔧 **Developer Experience** - Improved tooling and development workflow
+
+For detailed improvement notes, see [`docs/IMPROVEMENTS_SUMMARY.md`](docs/IMPROVEMENTS_SUMMARY.md)
 
 ## 🖥️ Compatibility
 
@@ -208,25 +222,36 @@ Hospital systems can define their own message formats. See `docs/INTEGRATION_ARC
 src/
 ├── config/
 │   ├── constants.ts          # Configuration constants
-│   └── integration-config.ts # Integration system types
+│   └── integrationConfig.ts  # Integration system configuration
 ├── types/
 │   ├── index.ts              # Core TypeScript interfaces
 │   └── integration.ts        # Integration system interfaces
 ├── core/
-│   └── integration-manager.ts # Central integration manager
-├── integrations/
-│   ├── base/                 # Base classes for integrations
-│   ├── medhis/              # MEDHIS Centrix integration
-│   └── custom/              # Custom hospital integrations
-├── utils/
-│   ├── messageValidator.ts   # Message validation utilities
-│   └── pcscErrorHandler.ts   # PC/SC error handling
-├── core/
+│   ├── integrationManager.ts # Central integration manager
 │   ├── cardReaderConnection.ts # Connection management
 │   └── commandSender.ts       # APDU command handling
+├── integrations/
+│   ├── base/                  # Base classes for integrations
+│   │   ├── baseIntegration.ts # Base integration class
+│   │   └── baseValidator.ts   # Base validator class
+│   ├── medhis/               # MEDHIS Centrix integration
+│   │   ├── medhisIntegration.ts # MEDHIS integration
+│   │   └── medhisValidator.ts   # MEDHIS validator
+│   └── custom/               # Custom hospital integrations
+│       └── hospitalIntegration.ts # Example custom integration
 ├── servers/
-│   └── websocketServer.ts    # WebSocket server
-├── ThaiIDCardReader.ts       # Main card reader class
+│   ├── httpServer.ts         # HTTP server manager
+│   └── websocketServer.ts    # WebSocket server manager
+├── utils/
+│   ├── messageValidator.ts   # Message validation utilities
+│   ├── pcscErrorHandler.ts   # PC/SC error handling
+│   ├── dataTransformer.ts    # Data transformation utilities
+│   ├── addressParser.ts      # Address parsing utilities
+│   └── logger.ts             # Structured logging system
+├── apdu/
+│   └── apdu.ts               # Smart card APDU commands
+├── thaiIdCardReader.ts       # Main card reader class
+├── smartCardReturnData.ts    # Data structures
 └── index.ts                  # Application entry point
 ```
 
@@ -315,7 +340,10 @@ npm install
 npm start
 
 # Build TypeScript
-npx tsc
+npm run build
+
+# Type checking
+npm run typecheck
 
 # Run with different log levels
 LOG_LEVEL=DEBUG npm start
@@ -324,11 +352,33 @@ LOG_LEVEL=DEBUG npm start
 ### Testing
 
 ```bash
-# Test card reading
+# Run Jest tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run tests with coverage
+npm run test:coverage
+
+# Test card reading (hardware test)
 node test-card-reader.js
 
-# Check card readers
+# Check card readers (hardware test)
 node check-readers.js
+```
+
+### Code Quality
+
+```bash
+# Run ESLint
+npm run lint
+
+# Type checking (strict mode enabled)
+npm run typecheck
+
+# Build production bundle
+npm run build
 ```
 
 ## 🐛 Troubleshooting

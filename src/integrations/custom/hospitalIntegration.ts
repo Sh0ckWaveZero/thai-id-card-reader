@@ -3,8 +3,8 @@
  * Shows how to implement a custom integration for other hospital systems
  */
 
-import { BaseIntegration } from '../base/base-integration';
-import { BaseValidator } from '../base/base-validator';
+import { BaseIntegration } from '../base/baseIntegration';
+import { BaseValidator } from '../base/baseValidator';
 import { IntegrationConfig, MessageValidator, ValidationResult, GenericMessage } from '../../types/integration';
 
 class HospitalValidator extends BaseValidator<GenericMessage> {
@@ -59,18 +59,18 @@ export class HospitalIntegration extends BaseIntegration {
   }
 
   protected async doInitialize(): Promise<void> {
-    console.log(`Initializing ${this.name} integration...`);
+    // Initialization handled by base class
     
     // Custom initialization logic for Hospital System
     if (this.config.settings?.apiEndpoint) {
-      console.log(`Hospital API endpoint: ${this.config.settings.apiEndpoint}`);
+      // API endpoint configured
     }
 
-    console.log(`${this.name} integration initialized`);
+    // Integration ready
   }
 
   protected async doShutdown(): Promise<void> {
-    console.log(`Shutting down ${this.name} integration...`);
+    // Shutdown handled by base class
     // Custom cleanup
   }
 

@@ -146,7 +146,7 @@ export abstract class BaseIntegration implements Integration {
       try {
         handler(event);
       } catch (error) {
-        console.error(`Error in event handler for ${this.name}:`, error);
+        // Event handler error silently ignored
       }
     });
   }

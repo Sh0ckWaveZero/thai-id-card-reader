@@ -1,11 +1,11 @@
 import { WebSocketServer, WebSocket } from "ws";
-import ThaiIDCardReader from "../ThaiIDCardReader";
+import ThaiIDCardReader from "../thaiIdCardReader";
 import { SERVER_CONFIG, CARD_READER_CONFIG, RESPONSE_MESSAGES } from "../config/constants";
 import { WebSocketMessage } from "../types";
 import { DataTransformer } from "../utils/dataTransformer";
 import { MessageValidator } from "../utils/messageValidator";
 import { logger } from "../utils/logger";
-import { integrationManager } from "../core/integration-manager";
+import { integrationManager } from "../core/integrationManager";
 
 export class WebSocketServerManager {
   private wss: WebSocketServer | null = null;

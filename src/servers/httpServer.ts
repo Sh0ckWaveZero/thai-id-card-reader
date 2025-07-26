@@ -1,7 +1,7 @@
 import * as http from "http";
 import * as https from "https";
 import * as fs from "fs";
-import ThaiIDCardReader from "../ThaiIDCardReader";
+import ThaiIDCardReader from "../thaiIdCardReader";
 import { SERVER_CONFIG, CARD_READER_CONFIG, CORS_HEADERS, RESPONSE_MESSAGES } from "../config/constants";
 import { HttpResponse } from "../types";
 import { logger } from "../utils/logger";

@@ -14,7 +14,7 @@ import {
   IntegrationEvent,
   IntegrationEventHandler
 } from '../types/integration';
-import { MedhisIntegration } from '../integrations/medhis/medhis-integration';
+import { MedhisIntegration } from '../integrations/medhis/medhisIntegration';
 
 class IntegrationRegistryImpl implements IntegrationRegistry {
   private integrations = new Map<string, Integration>();
@@ -56,7 +56,7 @@ export class IntegrationManager implements IIntegrationManager {
    * Initialize with integration configurations
    */
   async initialize(configs: IntegrationConfig[]): Promise<void> {
-    console.log('Initializing Integration Manager...');
+    // Integration Manager initialization
 
     // Clear existing integrations
     for (const integration of this.registry.getAll()) {
@@ -67,7 +67,7 @@ export class IntegrationManager implements IIntegrationManager {
     // Initialize new integrations
     for (const config of configs) {
       if (!config.enabled) {
-        console.log(`Skipping disabled integration: ${config.name}`);
+        // Skipping disabled integration
         continue;
       }
 
@@ -78,14 +78,14 @@ export class IntegrationManager implements IIntegrationManager {
         await integration.initialize();
         this.registry.register(integration);
         
-        console.log(`Successfully initialized integration: ${config.name}`);
+        // Integration initialized successfully
       } catch (error) {
-        console.error(`Failed to initialize integration ${config.name}:`, error);
+        // Integration initialization failed
         // Continue with other integrations
       }
     }
 
-    console.log(`Integration Manager initialized with ${this.registry.getEnabled().length} active integrations`);
+    // Integration Manager ready
   }
 
   /**
@@ -108,11 +108,11 @@ export class IntegrationManager implements IIntegrationManager {
         const result = integration.validateMessage(data);
         
         if (result.isValid) {
-          console.log(`Message validated by ${integration.name}`);
+          // Message validation successful
           return result;
         }
       } catch (error) {
-        console.error(`Error validating with ${integration.name}:`, error);
+        // Validation error occurred
         // Continue to next integration
       }
     }
@@ -155,9 +155,9 @@ export class IntegrationManager implements IIntegrationManager {
       }
 
       await this.initialize(integrationConfigs);
-      console.log('Configuration reloaded successfully');
+      // Configuration reloaded
     } catch (error) {
-      console.error('Failed to reload configuration:', error);
+      // Configuration reload failed
       throw error;
     }
   }
@@ -206,14 +206,14 @@ export class IntegrationManager implements IIntegrationManager {
    * Handle integration events
    */
   private handleIntegrationEvent(event: IntegrationEvent): void {
-    console.log(`Integration Event [${event.integration}]: ${event.type}`, event.data);
+    // Integration event handled
     
     // Forward event to registered handlers
     this.eventHandlers.forEach(handler => {
       try {
         handler(event);
       } catch (error) {
-        console.error('Error in integration event handler:', error);
+        // Event handler error
       }
     });
   }
@@ -222,19 +222,19 @@ export class IntegrationManager implements IIntegrationManager {
    * Shutdown all integrations
    */
   async shutdown(): Promise<void> {
-    console.log('Shutting down Integration Manager...');
+    // Integration Manager shutdown initiated
     
     const shutdownPromises = this.registry.getAll().map(async integration => {
       try {
         await integration.shutdown();
-        console.log(`Shutdown complete: ${integration.name}`);
+        // Integration shutdown completed
       } catch (error) {
-        console.error(`Error shutting down ${integration.name}:`, error);
+        // Integration shutdown error
       }
     });
 
     await Promise.allSettled(shutdownPromises);
-    console.log('Integration Manager shutdown complete');
+    // Integration Manager shutdown completed
   }
 }
 

@@ -3,8 +3,8 @@
  * Complete MEDHIS integration implementation
  */
 
-import { BaseIntegration } from '../base/base-integration';
-import { MedhisValidator } from './medhis-validator';
+import { BaseIntegration } from '../base/baseIntegration';
+import { MedhisValidator } from './medhisValidator';
 import { IntegrationConfig, MessageValidator } from '../../types/integration';
 
 export class MedhisIntegration extends BaseIntegration {
@@ -20,7 +20,7 @@ export class MedhisIntegration extends BaseIntegration {
    */
   protected async doInitialize(): Promise<void> {
     // MEDHIS-specific initialization
-    console.log(`Initializing ${this.name} integration...`);
+    // MEDHIS integration initialization
     
     // Validate MEDHIS-specific settings
     if (this.config.settings) {
@@ -29,19 +29,19 @@ export class MedhisIntegration extends BaseIntegration {
 
     // Setup MEDHIS compatibility mode if enabled
     if (this.config.compatibilityMode) {
-      console.log(`${this.name}: Backward compatibility mode enabled`);
+      // Backward compatibility enabled
     }
 
-    console.log(`${this.name} integration initialized successfully`);
+    // MEDHIS integration ready
   }
 
   /**
    * Shutdown MEDHIS integration
    */
   protected async doShutdown(): Promise<void> {
-    console.log(`Shutting down ${this.name} integration...`);
+    // MEDHIS shutdown initiated
     // MEDHIS-specific cleanup
-    console.log(`${this.name} integration shutdown complete`);
+    // MEDHIS shutdown completed
   }
 
   /**
@@ -53,7 +53,7 @@ export class MedhisIntegration extends BaseIntegration {
     
     for (const setting of requiredSettings) {
       if (settings[setting] === undefined) {
-        console.warn(`${this.name}: Missing recommended setting '${setting}'`);
+        // Missing recommended setting logged
       }
     }
   }

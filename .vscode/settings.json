@@ -2,7 +2,11 @@
     "git.ignoreLimitWarning": true,
     "kiroAgent.configureMCP": "Disabled",
     "cSpell.words": [
+        "apdu",
         "Centrix",
-        "MEDHIS"
+        "MEDHIS",
+        "pcsc",
+        "pcsclite",
+        "SCARD"
     ]
 }

@@ -1,5 +1,5 @@
 import { WebSocketMessage } from "../types";
-import { IntegrationManager } from "../config/integration-config";
+import { IntegrationManager } from "../config/integrationConfig";
 
 interface ValidationResult {
   isValid: boolean;
