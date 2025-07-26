@@ -110,6 +110,12 @@ export class WebSocketServerManager {
     }
   }
 
+  private startCardReading(ws: WebSocket): void {
+    // Initialize and start card reader for the specific WebSocket connection
+    const reader = this.initializeCardReader(ws);
+    logger.info("Card reader started for client");
+  }
+
   private sendMessage(ws: WebSocket, message: WebSocketMessage): void {
     ws.send(JSON.stringify(message));
   }

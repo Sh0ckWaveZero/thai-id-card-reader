@@ -43,21 +43,21 @@ export default class ThaiIDCardReader {
     pcsc.on("reader", function (reader: PCReader) {
       logger.info("New reader detected", reader.name)
 
-      reader.on("error", function (err) {
-        logger.error("Error(", this.name, "):", err.message)
+      reader.on("error", (err) => {
+        logger.error("Error(", reader.name, "):", err.message)
       })
 
-      reader.on("status", async function (status) {
-        logger.debug("Status(", this.name, "):", status)
+      reader.on("status", async (status) => {
+        logger.debug("Status(", reader.name, "):", status)
        
-        var changes = this.state ^ status.state
+        var changes = reader.state ^ status.state
         if (changes) {
           if (
-            changes & this.SCARD_STATE_EMPTY &&
-            status.state & this.SCARD_STATE_EMPTY
+            changes & reader.SCARD_STATE_EMPTY &&
+            status.state & reader.SCARD_STATE_EMPTY
           ) {
             logger.info("card removed")
-            reader.disconnect(reader.SCARD_LEAVE_CARD, function (err) {
+            reader.disconnect(reader.SCARD_LEAVE_CARD, (err) => {
               if (err) {
                 logger.error('Disconnect error:', err.message)
               } else {
@@ -65,8 +65,8 @@ export default class ThaiIDCardReader {
               }
             })
           } else if (
-            changes & this.SCARD_STATE_PRESENT &&
-            status.state & this.SCARD_STATE_PRESENT
+            changes & reader.SCARD_STATE_PRESENT &&
+            status.state & reader.SCARD_STATE_PRESENT
           ) {
             logger.info("card inserted")
             await delay(that.insertCardDelay)
@@ -80,6 +80,11 @@ export default class ThaiIDCardReader {
             
             const protocol = connectionResult.protocol
             logger.info("Protocol(", reader.name, "):", protocol)
+
+            if (!protocol) {
+              that.eventEmitter.emit("READ_ERROR", "No protocol available for card connection")
+              return
+            }
 
             const sendRawCommand = async (data: number[], retries = 2): Promise<Buffer> => {
               return CommandSender.sendRawCommand(reader, protocol, data, that.readTimeout, retries)
@@ -184,8 +189,8 @@ export default class ThaiIDCardReader {
         }
       })
 
-      reader.on("end", function () {
-        logger.info("Reader", this.name, "removed")
+      reader.on("end", () => {
+        logger.info("Reader", reader.name, "removed")
       })
     })
 

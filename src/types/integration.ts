@@ -37,6 +37,9 @@ export interface Integration {
   initialize(): Promise<void>;
   shutdown(): Promise<void>;
   isHealthy(): boolean;
+  addEventListener(handler: IntegrationEventHandler): void;
+  validateMessage(data: string): ValidationResult;
+  getMetadata(): Record<string, any>;
 }
 
 export interface IntegrationRegistry {

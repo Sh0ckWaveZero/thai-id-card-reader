@@ -16,7 +16,9 @@
       "Bash(git remote set-url:*)",
       "Bash(npm run test:*)",
       "Bash(node:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(npm run typecheck:*)",
+      "Bash(rm:*)"
     ],
     "deny": []
   }
